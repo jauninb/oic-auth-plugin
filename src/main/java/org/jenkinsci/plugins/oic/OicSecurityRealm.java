@@ -112,6 +112,8 @@ public class OicSecurityRealm extends SecurityRealm {
     private final Secret escapeHatchSecret;
     private final String escapeHatchGroup;
 
+    private boolean useBasicAuthentication = true;
+
     private transient HttpTransport httpTransport;
     private transient Random random;
 
@@ -340,15 +342,19 @@ public class OicSecurityRealm extends SecurityRealm {
     public HttpResponse doCommenceLogin(@QueryParameter String from, @Header("Referer") final String referer) {
         final String redirectOnFinish = determineRedirectTarget(from, referer);
 
+        HttpExecuteInterceptor clientAuthentication;
+        if (this.useBasicAuthentication) {
+            clientAuthentication = new BasicAuthentication(clientId, clientSecret.getPlainText());
+        } else {
+            clientAuthentication = new ClientParametersAuthentication(clientId, clientSecret.getPlainText());
+        }
+
         final AuthorizationCodeFlow flow = new AuthorizationCodeFlow.Builder(
                 BearerToken.queryParameterAccessMethod(),
                 httpTransport,
                 JSON_FACTORY,
                 new GenericUrl(tokenServerUrl),
-                new ClientParametersAuthentication(
-                        clientId,
-                        clientSecret.getPlainText()
-                ),
+                clientAuthentication,
                 clientId,
                 authorizationServerUrl
         )
